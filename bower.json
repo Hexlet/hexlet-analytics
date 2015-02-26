@@ -1,0 +1,19 @@
+{
+  "name": "hexlet-analytics",
+  "version": "1.0.0",
+  "authors": [
+    "Hexlet <info@hexlet.io>"
+  ],
+  "description": "Segment.io analytics.js script built for Hexlet.io",
+  "main": "dist/analytics.min.js",
+  "keywords": [
+    "analytics.js",
+    "hexlet",
+    "analytics"
+  ],
+  "license": "MIT",
+  "homepage": "https://github.com/Hexlet/hexlet-analytics",
+  "ignore": [
+    "**/.*"
+  ]
+}
