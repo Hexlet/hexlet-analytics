@@ -1,7 +1,4 @@
-{
-  "version": "1.3.45",
-  "plugins": [
-    "google-analytics",
-    "yandex-metrica"
-  ]
-}
+[
+  "google-analytics",
+  "yandex-metrica"
+]
