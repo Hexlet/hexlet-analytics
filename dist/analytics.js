@@ -286,11 +286,11 @@ module.exports = function(val){
  */
 
 module.exports = [
-  require('./components/segmentio-analytics.js-integrations@1.3.45/lib/google-analytics'),
-  require('./components/segmentio-analytics.js-integrations@1.3.45/lib/yandex-metrica')
+  require('analytics.js-integrations:/lib/google-analytics'),
+  require('analytics.js-integrations:/lib/yandex-metrica')
 ];
 
-}, {"./components/segmentio-analytics.js-integrations@1.3.45/lib/google-analytics":8,"./components/segmentio-analytics.js-integrations@1.3.45/lib/yandex-metrica":9}],
+}, {"analytics.js-integrations:/lib/google-analytics":8,"analytics.js-integrations:/lib/yandex-metrica":9}],
 8: [function(require, module, exports) {
 
 /**
