@@ -5,7 +5,7 @@ dist/analytics.js: analytics/analytics.js
 	@du -hs dist
 
 analytics/analytics.js: analytics/integrations.json
-	-@cd analytics && make
+	@cd analytics && make build.js
 
 analytics/integrations.json: analytics
 	@cp integrations.json analytics/integrations.json
