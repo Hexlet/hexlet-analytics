@@ -9437,7 +9437,6 @@ var toplevel = [
   'context',
   'groupId',
   'userId',
-  'traits',
   'event',
   'name'
 ];
@@ -9729,7 +9728,7 @@ module.exports = function uuid(a){
 5: [function(require, module, exports) {
 module.exports = {
   "name": "analytics",
-  "version": "2.6.10",
+  "version": "2.6.11",
   "main": "analytics.js",
   "dependencies": {},
   "devDependencies": {}
