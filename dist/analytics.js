@@ -375,7 +375,6 @@ GA.on('construct', function(integration){
   } else if (integration.options.enhancedEcommerce) {
     integration.viewedProduct = integration.viewedProductEnhanced;
     integration.clickedProduct = integration.clickedProductEnhanced;
-    integration.viewedProductDetails = integration.viewedProductDetailsEnhanced;
     integration.addedProduct = integration.addedProductEnhanced;
     integration.removedProduct = integration.removedProductEnhanced;
     integration.startedOrder = integration.startedOrderEnhanced;
@@ -1019,33 +1018,9 @@ GA.prototype.removedProductEnhanced = function(track){
  * @param {Track} track
  */
 
-GA.prototype.viewedProductDetailsEnhanced = function(track){
+GA.prototype.viewedProductEnhanced = function(track){
   this.loadEnhancedEcommerce(track);
   enhancedEcommerceProductAction(track, 'detail');
-  this.pushEnhancedEcommerce(track);
-};
-
-/**
- * Viewed product - Enhanced Ecommerce
- *
- * https://developers.google.com/analytics/devguides/collection/analyticsjs/enhanced-ecommerce#measuring-impressions
- *
- * @param {Track} track
- */
-
-GA.prototype.viewedProductEnhanced = function(track){
-  var props = track.properties();
-
-  this.loadEnhancedEcommerce(track);
-  ga('ec:addImpression', {
-    id: track.id() || track.sku(),
-    name: track.name(),
-    category: track.category(),
-    brand: props.brand,
-    variant: props.variant,
-    list: props.list,
-    position: props.position,
-  });
   this.pushEnhancedEcommerce(track);
 };
 
@@ -9728,7 +9703,7 @@ module.exports = function uuid(a){
 5: [function(require, module, exports) {
 module.exports = {
   "name": "analytics",
-  "version": "2.6.11",
+  "version": "2.6.12",
   "main": "analytics.js",
   "dependencies": {},
   "devDependencies": {}
