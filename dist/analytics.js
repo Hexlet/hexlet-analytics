@@ -6777,7 +6777,6 @@ var _analytics = window.analytics;
 var after = require('after');
 var bind = require('bind');
 var callback = require('callback');
-var canonical = require('canonical');
 var clone = require('clone');
 var cookie = require('./cookie');
 var debug = require('debug');
@@ -6790,13 +6789,14 @@ var isEmail = require('is-email');
 var isMeta = require('is-meta');
 var newDate = require('new-date');
 var on = require('event').bind;
+var pageDefaults = require('./pageDefaults');
+var pick = require('pick');
 var prevent = require('prevent');
 var querystring = require('querystring');
 var normalize = require('./normalize');
 var size = require('object').length;
 var keys = require('object').keys;
 var store = require('./store');
-var url = require('url');
 var user = require('./user');
 var Facade = require('facade');
 var Identify = Facade.Identify;
@@ -6970,7 +6970,6 @@ Analytics.prototype.identify = function (id, traits, options, fn) {
   if (is.fn(options)) fn = options, options = null;
   if (is.fn(traits)) fn = traits, options = null, traits = null;
   if (is.object(id)) options = traits, traits = id, id = user.id();
-
 
   // clone traits before we manipulate so we don't do anything uncouth, and take
   // from `user` so that we carryover anonymous traits
@@ -7179,19 +7178,24 @@ Analytics.prototype.page = function (category, name, properties, options, fn) {
   if (is.object(name)) options = properties, properties = name, name = null;
   if (is.string(category) && !is.string(name)) name = category, category = null;
 
-  var defs = {
-    path: canonicalPath(),
-    referrer: document.referrer,
-    title: document.title,
-    search: location.search
-  };
-
-  if (name) defs.name = name;
-  if (category) defs.category = category;
-
   properties = clone(properties) || {};
+  if (category) properties.name = name;
+  if (name) properties.category = category;
+
+  // Ensure properties has baseline spec properties.
+  // TODO: Eventually move these entirely to `options.context.page`
+  var defs = pageDefaults();
   defaults(properties, defs);
-  properties.url = properties.url || canonicalUrl(properties.search);
+
+  // Mirror user overrides to `options.context.page` (but exclude custom properties)
+  // (Any page defaults get applied in `this.normalize` for consistency.)
+  // Weird, yeah--moving special props to `context.page` will fix this in the long term.
+  var overrides = pick(keys(defs), properties);
+  if (!is.empty(overrides)) {
+    options = options || {};
+    options.context = options.context || {};
+    options.context.page = overrides;
+  }
 
   var msg = this.normalize({
     properties: properties,
@@ -7394,6 +7398,10 @@ Analytics.prototype.normalize = function(msg){
   msg = normalize(msg, keys(this._integrations));
   if (msg.anonymousId) user.anonymousId(msg.anonymousId);
   msg.anonymousId = user.anonymousId();
+
+  // Ensure all outgoing requests include page data in their contexts.
+  msg.context.page = defaults(msg.context.page || {}, pageDefaults());
+
   return msg;
 };
 
@@ -7406,36 +7414,8 @@ Analytics.prototype.noConflict = function(){
   return this;
 };
 
-/**
- * Return the canonical path for the page.
- *
- * @return {String}
- */
 
-function canonicalPath () {
-  var canon = canonical();
-  if (!canon) return window.location.pathname;
-  var parsed = url.parse(canon);
-  return parsed.pathname;
-}
-
-/**
- * Return the canonical URL for the page concat the given `search`
- * and strip the hash.
- *
- * @param {String} search
- * @return {String}
- */
-
-function canonicalUrl (search) {
-  var canon = canonical();
-  if (canon) return ~canon.indexOf('?') ? canon : canon + search;
-  var url = window.location.href;
-  var i = url.indexOf('#');
-  return -1 == i ? url : url.slice(0, i);
-}
-
-}, {"after":41,"bind":90,"callback":16,"canonical":13,"clone":25,"./cookie":91,"debug":92,"defaults":27,"each":4,"emitter":40,"./group":93,"is":23,"is-email":70,"is-meta":94,"new-date":61,"event":95,"prevent":96,"querystring":97,"./normalize":98,"object":12,"./store":99,"url":22,"./user":100,"facade":15}],
+}, {"after":41,"bind":90,"callback":16,"clone":25,"./cookie":91,"debug":92,"defaults":27,"each":4,"emitter":40,"./group":93,"is":23,"is-email":70,"is-meta":94,"new-date":61,"event":95,"./pageDefaults":96,"pick":97,"prevent":98,"querystring":99,"./normalize":100,"object":12,"./store":101,"./user":102,"facade":15}],
 90: [function(require, module, exports) {
 
 try {
@@ -7611,7 +7591,7 @@ module.exports = bind.all(new Cookie());
 
 module.exports.Cookie = Cookie;
 
-}, {"debug":92,"bind":90,"cookie":101,"clone":25,"defaults":27,"json":102,"top-domain":103}],
+}, {"debug":92,"bind":90,"cookie":103,"clone":25,"defaults":27,"json":104,"top-domain":105}],
 92: [function(require, module, exports) {
 if ('undefined' == typeof window) {
   module.exports = require('./lib/debug');
@@ -7619,8 +7599,8 @@ if ('undefined' == typeof window) {
   module.exports = require('./debug');
 }
 
-}, {"./lib/debug":104,"./debug":105}],
-104: [function(require, module, exports) {
+}, {"./lib/debug":106,"./debug":107}],
+106: [function(require, module, exports) {
 /**
  * Module dependencies.
  */
@@ -7770,7 +7750,7 @@ function coerce(val) {
 }
 
 }, {}],
-105: [function(require, module, exports) {
+107: [function(require, module, exports) {
 
 /**
  * Expose `debug()` as the module.
@@ -7910,7 +7890,7 @@ try {
 } catch(e){}
 
 }, {}],
-101: [function(require, module, exports) {
+103: [function(require, module, exports) {
 
 /**
  * Module dependencies.
@@ -8035,7 +8015,7 @@ function decode(value) {
 }
 
 }, {"debug":92}],
-102: [function(require, module, exports) {
+104: [function(require, module, exports) {
 
 var json = window.JSON || {};
 var stringify = json.stringify;
@@ -8045,8 +8025,8 @@ module.exports = parse && stringify
   ? JSON
   : require('json-fallback');
 
-}, {"json-fallback":106}],
-106: [function(require, module, exports) {
+}, {"json-fallback":108}],
+108: [function(require, module, exports) {
 /*
     json2.js
     2014-02-04
@@ -8536,7 +8516,7 @@ module.exports = parse && stringify
 }());
 
 }, {}],
-103: [function(require, module, exports) {
+105: [function(require, module, exports) {
 
 /**
  * Module dependencies.
@@ -8584,8 +8564,8 @@ function domain(url){
   return match ? match[0] : '';
 };
 
-}, {"url":107}],
-107: [function(require, module, exports) {
+}, {"url":109}],
+109: [function(require, module, exports) {
 
 /**
  * Parse the given `url`.
@@ -8726,8 +8706,8 @@ module.exports = bind.all(new Group());
 
 module.exports.Group = Group;
 
-}, {"debug":92,"./entity":108,"inherit":109,"bind":90}],
-108: [function(require, module, exports) {
+}, {"debug":92,"./entity":110,"inherit":111,"bind":90}],
+110: [function(require, module, exports) {
 
 var traverse = require('isodate-traverse');
 var defaults = require('defaults');
@@ -8947,8 +8927,8 @@ Entity.prototype.load = function () {
 };
 
 
-}, {"isodate-traverse":56,"defaults":27,"./cookie":91,"./store":99,"extend":110,"clone":25}],
-99: [function(require, module, exports) {
+}, {"isodate-traverse":56,"defaults":27,"./cookie":91,"./store":101,"extend":112,"clone":25}],
+101: [function(require, module, exports) {
 
 var bind = require('bind');
 var defaults = require('defaults');
@@ -9035,8 +9015,8 @@ module.exports = bind.all(new Store());
 
 module.exports.Store = Store;
 
-}, {"bind":90,"defaults":27,"store.js":111}],
-111: [function(require, module, exports) {
+}, {"bind":90,"defaults":27,"store.js":113}],
+113: [function(require, module, exports) {
 var json             = require('json')
   , store            = {}
   , win              = window
@@ -9188,8 +9168,8 @@ try {
 store.enabled = !store.disabled
 
 module.exports = store;
-}, {"json":102}],
-110: [function(require, module, exports) {
+}, {"json":104}],
+112: [function(require, module, exports) {
 
 module.exports = function extend (object) {
     // Takes an unlimited number of extenders.
@@ -9206,7 +9186,7 @@ module.exports = function extend (object) {
     return object;
 };
 }, {}],
-109: [function(require, module, exports) {
+111: [function(require, module, exports) {
 
 module.exports = function(a, b){
   var fn = function(){};
@@ -9277,6 +9257,145 @@ exports.unbind = function(el, type, fn, capture){
 96: [function(require, module, exports) {
 
 /**
+ * Module dependencies.
+ */
+
+var canonical = require('canonical');
+var url = require('url');
+
+/**
+ * Return a default `options.context.page` object.
+ *
+ * https://segment.com/docs/spec/page/#properties
+ *
+ * @return {Object}
+ */
+
+function pageDefaults() {
+  return {
+    path: canonicalPath(),
+    referrer: document.referrer,
+    search: location.search,
+    title: document.title,
+    url: canonicalUrl(location.search)
+  };
+}
+
+/**
+ * Return the canonical path for the page.
+ *
+ * @return {String}
+ */
+
+function canonicalPath () {
+  var canon = canonical();
+  if (!canon) return window.location.pathname;
+  var parsed = url.parse(canon);
+  return parsed.pathname;
+}
+
+/**
+ * Return the canonical URL for the page concat the given `search`
+ * and strip the hash.
+ *
+ * @param {String} search
+ * @return {String}
+ */
+
+function canonicalUrl (search) {
+  var canon = canonical();
+  if (canon) return ~canon.indexOf('?') ? canon : canon + search;
+  var url = window.location.href;
+  var i = url.indexOf('#');
+  return -1 === i ? url : url.slice(0, i);
+}
+
+/**
+ * Exports.
+ */
+
+module.exports = pageDefaults;
+
+}, {"canonical":13,"url":22}],
+97: [function(require, module, exports) {
+'use strict';
+
+var objToString = Object.prototype.toString;
+
+// TODO: Move to lib
+var existy = function(val) {
+  return val != null;
+};
+
+// TODO: Move to lib
+var isArray = function(val) {
+  return objToString.call(val) === '[object Array]';
+};
+
+// TODO: Move to lib
+var isString = function(val) {
+   return typeof val === 'string' || objToString.call(val) === '[object String]';
+};
+
+// TODO: Move to lib
+var isObject = function(val) {
+  return val != null && typeof val === 'object';
+};
+
+/**
+ * Returns a copy of the new `object` containing only the specified properties.
+ *
+ * @name pick
+ * @api public
+ * @category Object
+ * @see {@link omit}
+ * @param {Array.<string>|string} props The property or properties to keep.
+ * @param {Object} object The object to iterate over.
+ * @return {Object} A new object containing only the specified properties from `object`.
+ * @example
+ * var person = { name: 'Tim', occupation: 'enchanter', fears: 'rabbits' };
+ *
+ * pick('name', person);
+ * //=> { name: 'Tim' }
+ *
+ * pick(['name', 'fears'], person);
+ * //=> { name: 'Tim', fears: 'rabbits' }
+ */
+
+var pick = function pick(props, object) {
+  if (!existy(object) || !isObject(object)) {
+    return {};
+  }
+
+  if (isString(props)) {
+    props = [props];
+  }
+
+  if (!isArray(props)) {
+    props = [];
+  }
+
+  var result = {};
+
+  for (var i = 0; i < props.length; i += 1) {
+    if (isString(props[i]) && props[i] in object) {
+      result[props[i]] = object[props[i]];
+    }
+  }
+
+  return result;
+};
+
+/**
+ * Exports.
+ */
+
+module.exports = pick;
+
+}, {}],
+98: [function(require, module, exports) {
+
+/**
  * prevent default on the given `e`.
  * 
  * examples:
@@ -9297,7 +9416,7 @@ module.exports = function(e){
 };
 
 }, {}],
-97: [function(require, module, exports) {
+99: [function(require, module, exports) {
 
 /**
  * Module dependencies.
@@ -9373,7 +9492,7 @@ exports.stringify = function(obj){
 };
 
 }, {"trim":71,"type":7}],
-98: [function(require, module, exports) {
+100: [function(require, module, exports) {
 
 /**
  * Module Dependencies.
@@ -9405,15 +9524,8 @@ module.exports = normalize;
 var toplevel = [
   'integrations',
   'anonymousId',
-  'properties',
-  'previousId',
   'timestamp',
-  'category',
-  'context',
-  'groupId',
-  'userId',
-  'event',
-  'name'
+  'context'
 ];
 
 /**
@@ -9473,8 +9585,8 @@ function normalize(msg, list){
       || ~indexof(lower, name.toLowerCase()));
   }
 }
-}, {"debug":92,"component/indexof":45,"defaults":27,"component/map":112,"each":4,"is":23}],
-112: [function(require, module, exports) {
+}, {"debug":92,"component/indexof":45,"defaults":27,"component/map":114,"each":4,"is":23}],
+114: [function(require, module, exports) {
 
 /**
  * Module dependencies.
@@ -9500,7 +9612,7 @@ module.exports = function(arr, fn){
   return ret;
 };
 }, {"to-function":72}],
-100: [function(require, module, exports) {
+102: [function(require, module, exports) {
 
 var debug = require('debug')('analytics:user');
 var Entity = require('./entity');
@@ -9669,8 +9781,8 @@ module.exports = bind.all(new User());
 
 module.exports.User = User;
 
-}, {"debug":92,"./entity":108,"inherit":109,"bind":90,"./cookie":91,"uuid":113,"cookie":101}],
-113: [function(require, module, exports) {
+}, {"debug":92,"./entity":110,"inherit":111,"bind":90,"./cookie":91,"uuid":115,"cookie":103}],
+115: [function(require, module, exports) {
 
 /**
  * Taken straight from jed's gist: https://gist.github.com/982883
@@ -9703,7 +9815,7 @@ module.exports = function uuid(a){
 5: [function(require, module, exports) {
 module.exports = {
   "name": "analytics",
-  "version": "2.6.12",
+  "version": "2.7.1",
   "main": "analytics.js",
   "dependencies": {},
   "devDependencies": {}
