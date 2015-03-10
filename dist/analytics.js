@@ -6796,6 +6796,7 @@ var querystring = require('querystring');
 var normalize = require('./normalize');
 var size = require('object').length;
 var keys = require('object').keys;
+var memory = require('./memory');
 var store = require('./store');
 var user = require('./user');
 var Facade = require('facade');
@@ -6812,11 +6813,12 @@ var Page = Facade.Page;
 exports = module.exports = Analytics;
 
 /**
- * Expose `cookie`
+ * Expose storage.
  */
 
 exports.cookie = cookie;
 exports.store = store;
+exports.memory = memory;
 
 /**
  * Initialize a new `Analytics` instance.
@@ -7179,8 +7181,8 @@ Analytics.prototype.page = function (category, name, properties, options, fn) {
   if (is.string(category) && !is.string(name)) name = category, category = null;
 
   properties = clone(properties) || {};
-  if (category) properties.name = name;
-  if (name) properties.category = category;
+  if (name) properties.name = name;
+  if (category) properties.category = category;
 
   // Ensure properties has baseline spec properties.
   // TODO: Eventually move these entirely to `options.context.page`
@@ -7415,7 +7417,7 @@ Analytics.prototype.noConflict = function(){
 };
 
 
-}, {"after":41,"bind":90,"callback":16,"clone":25,"./cookie":91,"debug":92,"defaults":27,"each":4,"emitter":40,"./group":93,"is":23,"is-email":70,"is-meta":94,"new-date":61,"event":95,"./pageDefaults":96,"pick":97,"prevent":98,"querystring":99,"./normalize":100,"object":12,"./store":101,"./user":102,"facade":15}],
+}, {"after":41,"bind":90,"callback":16,"clone":25,"./cookie":91,"debug":92,"defaults":27,"each":4,"emitter":40,"./group":93,"is":23,"is-email":70,"is-meta":94,"new-date":61,"event":95,"./pageDefaults":96,"pick":97,"prevent":98,"querystring":99,"./normalize":100,"object":12,"./memory":101,"./store":102,"./user":103,"facade":15}],
 90: [function(require, module, exports) {
 
 try {
@@ -7591,7 +7593,7 @@ module.exports = bind.all(new Cookie());
 
 module.exports.Cookie = Cookie;
 
-}, {"debug":92,"bind":90,"cookie":103,"clone":25,"defaults":27,"json":104,"top-domain":105}],
+}, {"debug":92,"bind":90,"cookie":104,"clone":25,"defaults":27,"json":105,"top-domain":106}],
 92: [function(require, module, exports) {
 if ('undefined' == typeof window) {
   module.exports = require('./lib/debug');
@@ -7599,8 +7601,8 @@ if ('undefined' == typeof window) {
   module.exports = require('./debug');
 }
 
-}, {"./lib/debug":106,"./debug":107}],
-106: [function(require, module, exports) {
+}, {"./lib/debug":107,"./debug":108}],
+107: [function(require, module, exports) {
 /**
  * Module dependencies.
  */
@@ -7750,7 +7752,7 @@ function coerce(val) {
 }
 
 }, {}],
-107: [function(require, module, exports) {
+108: [function(require, module, exports) {
 
 /**
  * Expose `debug()` as the module.
@@ -7890,7 +7892,7 @@ try {
 } catch(e){}
 
 }, {}],
-103: [function(require, module, exports) {
+104: [function(require, module, exports) {
 
 /**
  * Module dependencies.
@@ -8015,7 +8017,7 @@ function decode(value) {
 }
 
 }, {"debug":92}],
-104: [function(require, module, exports) {
+105: [function(require, module, exports) {
 
 var json = window.JSON || {};
 var stringify = json.stringify;
@@ -8025,8 +8027,8 @@ module.exports = parse && stringify
   ? JSON
   : require('json-fallback');
 
-}, {"json-fallback":108}],
-108: [function(require, module, exports) {
+}, {"json-fallback":109}],
+109: [function(require, module, exports) {
 /*
     json2.js
     2014-02-04
@@ -8516,7 +8518,7 @@ module.exports = parse && stringify
 }());
 
 }, {}],
-105: [function(require, module, exports) {
+106: [function(require, module, exports) {
 
 /**
  * Module dependencies.
@@ -8564,8 +8566,8 @@ function domain(url){
   return match ? match[0] : '';
 };
 
-}, {"url":109}],
-109: [function(require, module, exports) {
+}, {"url":110}],
+110: [function(require, module, exports) {
 
 /**
  * Parse the given `url`.
@@ -8706,11 +8708,13 @@ module.exports = bind.all(new Group());
 
 module.exports.Group = Group;
 
-}, {"debug":92,"./entity":110,"inherit":111,"bind":90}],
-110: [function(require, module, exports) {
+}, {"debug":92,"./entity":111,"inherit":112,"bind":90}],
+111: [function(require, module, exports) {
 
+var debug = require('debug')('analytics:entity');
 var traverse = require('isodate-traverse');
 var defaults = require('defaults');
+var memory = require('./memory');
 var cookie = require('./cookie');
 var store = require('./store');
 var extend = require('extend');
@@ -8731,26 +8735,46 @@ module.exports = Entity;
  */
 
 function Entity(options){
-  this.protocol = window.location.protocol;
   this.options(options);
+  this.initialize();
 }
 
 /**
+ * Initialize picks the storage.
+ *
+ * Checks to see if cookies can be set
+ * otherwise fallsback to localStorage.
+ */
+
+Entity.prototype.initialize = function(){
+  cookie.set('ajs:cookies', true);
+
+  // cookies are enabled.
+  if (cookie.get('ajs:cookies')) {
+    cookie.remove('ajs:cookies');
+    this._storage = cookie;
+    return;
+  }
+
+  // localStorage is enabled.
+  if (store.enabled) {
+    this._storage = store;
+    return;
+  }
+
+  // fallback to memory storage.
+  debug('warning using memory store both cookies and localStorage are disabled');
+  this._storage = memory;
+};
+
+/**
  * Get the storage.
- *
- * When .protocol is `file:` or `chrome-extension:`
- * the method will return the localstorage (store)
- * otherwise it will return the cookie.
- *
- * @return {Object}
  */
 
 Entity.prototype.storage = function(){
-  return 'file:' == this.protocol
-    || 'chrome-extension:' == this.protocol
-    ? store
-    : cookie;
+  return this._storage;
 };
+
 
 /**
  * Get or set storage `options`.
@@ -8790,9 +8814,8 @@ Entity.prototype.id = function (id) {
  */
 
 Entity.prototype._getId = function () {
-  var storage = this.storage();
   var ret = this._options.persist
-    ? storage.get(this._options.cookie.key)
+    ? this.storage().get(this._options.cookie.key)
     : this._id;
   return ret === undefined ? null : ret;
 };
@@ -8805,9 +8828,8 @@ Entity.prototype._getId = function () {
  */
 
 Entity.prototype._setId = function (id) {
-  var storage = this.storage();
   if (this._options.persist) {
-    storage.set(this._options.cookie.key, id);
+    this.storage().set(this._options.cookie.key, id);
   } else {
     this._id = id;
   }
@@ -8927,8 +8949,73 @@ Entity.prototype.load = function () {
 };
 
 
-}, {"isodate-traverse":56,"defaults":27,"./cookie":91,"./store":101,"extend":112,"clone":25}],
+}, {"debug":92,"isodate-traverse":56,"defaults":27,"./memory":101,"./cookie":91,"./store":102,"extend":113,"clone":25}],
 101: [function(require, module, exports) {
+
+/**
+ * Module Dependencies.
+ */
+
+var clone = require('clone');
+var bind = require('bind');
+
+/**
+ * HOP.
+ */
+
+var has = Object.prototype.hasOwnProperty;
+
+/**
+ * Expose `Memory`
+ */
+
+module.exports = bind.all(new Memory);
+
+/**
+ * Initialize `Memory` store
+ */
+
+function Memory(){
+  this.store = {};
+}
+
+/**
+ * Set a `key` and `value`.
+ *
+ * @param {String} key
+ * @param {Mixed} value
+ * @return {Boolean}
+ */
+
+Memory.prototype.set = function(key, value){
+  this.store[key] = clone(value);
+  return true;
+};
+
+/**
+ * Get a `key`.
+ *
+ * @param {String} key
+ */
+
+Memory.prototype.get = function(key){
+  if (!has.call(this.store, key)) return;
+  return clone(this.store[key]);
+};
+
+/**
+ * Remove a `key`.
+ *
+ * @param {String} key
+ * @return {Boolean}
+ */
+
+Memory.prototype.remove = function(key){
+  delete this.store[key];
+  return true;
+};
+}, {"clone":25,"bind":90}],
+102: [function(require, module, exports) {
 
 var bind = require('bind');
 var defaults = require('defaults');
@@ -9015,8 +9102,8 @@ module.exports = bind.all(new Store());
 
 module.exports.Store = Store;
 
-}, {"bind":90,"defaults":27,"store.js":113}],
-113: [function(require, module, exports) {
+}, {"bind":90,"defaults":27,"store.js":114}],
+114: [function(require, module, exports) {
 var json             = require('json')
   , store            = {}
   , win              = window
@@ -9168,8 +9255,8 @@ try {
 store.enabled = !store.disabled
 
 module.exports = store;
-}, {"json":104}],
-112: [function(require, module, exports) {
+}, {"json":105}],
+113: [function(require, module, exports) {
 
 module.exports = function extend (object) {
     // Takes an unlimited number of extenders.
@@ -9186,7 +9273,7 @@ module.exports = function extend (object) {
     return object;
 };
 }, {}],
-111: [function(require, module, exports) {
+112: [function(require, module, exports) {
 
 module.exports = function(a, b){
   var fn = function(){};
@@ -9585,8 +9672,8 @@ function normalize(msg, list){
       || ~indexof(lower, name.toLowerCase()));
   }
 }
-}, {"debug":92,"component/indexof":45,"defaults":27,"component/map":114,"each":4,"is":23}],
-114: [function(require, module, exports) {
+}, {"debug":92,"component/indexof":45,"defaults":27,"component/map":115,"each":4,"is":23}],
+115: [function(require, module, exports) {
 
 /**
  * Module dependencies.
@@ -9612,7 +9699,7 @@ module.exports = function(arr, fn){
   return ret;
 };
 }, {"to-function":72}],
-102: [function(require, module, exports) {
+103: [function(require, module, exports) {
 
 var debug = require('debug')('analytics:user');
 var Entity = require('./entity');
@@ -9781,8 +9868,8 @@ module.exports = bind.all(new User());
 
 module.exports.User = User;
 
-}, {"debug":92,"./entity":110,"inherit":111,"bind":90,"./cookie":91,"uuid":115,"cookie":103}],
-115: [function(require, module, exports) {
+}, {"debug":92,"./entity":111,"inherit":112,"bind":90,"./cookie":91,"uuid":116,"cookie":104}],
+116: [function(require, module, exports) {
 
 /**
  * Taken straight from jed's gist: https://gist.github.com/982883
@@ -9815,7 +9902,7 @@ module.exports = function uuid(a){
 5: [function(require, module, exports) {
 module.exports = {
   "name": "analytics",
-  "version": "2.7.1",
+  "version": "2.8.0",
   "main": "analytics.js",
   "dependencies": {},
   "devDependencies": {}
