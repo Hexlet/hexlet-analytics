@@ -456,6 +456,7 @@ GA.prototype.page = function(page){
   var category = page.category();
   var props = page.properties();
   var name = page.fullName();
+  var opts = this.options;
   var campaign = page.proxy('context.campaign') || {};
   var pageview = {};
   var track;
@@ -471,6 +472,10 @@ GA.prototype.page = function(page){
   if (campaign.medium) pageview.campaignMedium = campaign.medium;
   if (campaign.content) pageview.campaignContent = campaign.content;
   if (campaign.term) pageview.campaignKeyword = campaign.term;
+
+  // custom dimensions and metrics
+  var custom = metrics(props, opts);
+  if (length(custom)) window.ga('set', custom);
 
   // send
   window.ga('send', 'pageview', pageview);
@@ -3241,14 +3246,15 @@ map.colgroup =
 map.caption =
 map.tfoot = [1, '<table>', '</table>'];
 
-map.text =
-map.circle =
+map.polyline =
 map.ellipse =
+map.polygon =
+map.circle =
+map.text =
 map.line =
 map.path =
-map.polygon =
-map.polyline =
-map.rect = [1, '<svg xmlns="http://www.w3.org/2000/svg" version="1.1">','</svg>'];
+map.rect =
+map.g = [1, '<svg xmlns="http://www.w3.org/2000/svg" version="1.1">','</svg>'];
 
 /**
  * Parse `html` and return a DOM Node instance, which could be a TextNode,
@@ -9902,10 +9908,11 @@ module.exports = function uuid(a){
 5: [function(require, module, exports) {
 module.exports = {
   "name": "analytics",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "main": "analytics.js",
   "dependencies": {},
   "devDependencies": {}
-};
+}
+;
 }, {}]}, {}, {"1":""})
 );
